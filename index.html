@@ -54,7 +54,6 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
-  [hidden] { display: none !important; }
 body {
   margin: 0;
   background: var(--bg); color: var(--fg); font-family: var(--font);
@@ -117,6 +116,7 @@ h1 .m { color: var(--accent); }
 .status.err { color: var(--sun); }
 
 /* 편집 시트 */
+.overlay[hidden] { display: none; }
 .overlay { position: fixed; inset: 0; background: var(--overlay); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
 .sheet {
   width: min(560px, 100%); max-height: 88%; overflow-y: auto; background: var(--bg); border: 1px solid var(--line);
