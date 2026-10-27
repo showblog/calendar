@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>일정 메모 달력</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
+<style>
+/* Layout: 월 달력 그리드 (일~토 7열) + 하단에서 올라오는 메모 편집 시트. 흰 바탕, 굵은 남색 제목, 파랑 월 강조. */
+:root {
+  --bg: #ffffff;
+  --fg: #111a2b;
+  --muted: #5b667a;
+  --line: #c9d0dc;
+  --head-bg: #e9eef6;
+  --accent: #0a4fd8;
+  --sun: #d4141c;
+  --sat: #0a4fd8;
+  --panel: #f2f5fb;
+  --today: #0a4fd8;
+  --today-fg: #ffffff;
+  --ok: #17803d;
+  --nes-bg: #cfe2fb; --nes-fg: #0f2f66;
+  --lora-bg: #fbd3e1; --lora-fg: #741a3d;
+  --robin-bg: #cdf0c9; --robin-fg: #174d18;
+  --etc-bg: #fde9b8; --etc-fg: #6a4a07;
+  --note-fg: #d4141c;
+  --overlay: rgba(10, 18, 36, .45);
+  --font: "Noto Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1422; --fg: #eaf0fb; --muted: #9aa7bf; --line: #2c3750; --head-bg: #18213a;
+    --accent: #6c9bff; --sun: #ff6b72; --sat: #7aa5ff; --panel: #161e33;
+    --today: #6c9bff; --today-fg: #0e1422; --ok: #5fd08a;
+    --nes-bg: #1f3a6b; --nes-fg: #cfe2fb;
+    --lora-bg: #6a2a46; --lora-fg: #fbd3e1;
+    --robin-bg: #1f5230; --robin-fg: #cdf0c9;
+    --etc-bg: #6b5316; --etc-fg: #fde9b8;
+    --note-fg: #ff8a90; --overlay: rgba(0, 0, 0, .6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1422; --fg: #eaf0fb; --muted: #9aa7bf; --line: #2c3750; --head-bg: #18213a;
+  --accent: #6c9bff; --sun: #ff6b72; --sat: #7aa5ff; --panel: #161e33;
+  --today: #6c9bff; --today-fg: #0e1422; --ok: #5fd08a;
+  --nes-bg: #1f3a6b; --nes-fg: #cfe2fb;
+  --lora-bg: #6a2a46; --lora-fg: #fbd3e1;
+  --robin-bg: #1f5230; --robin-fg: #cdf0c9;
+  --etc-bg: #6b5316; --etc-fg: #fde9b8;
+  --note-fg: #ff8a90; --overlay: rgba(0, 0, 0, .6);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg); color: var(--fg); font-family: var(--font);
+  padding-block: 20px 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+button { font-family: inherit; cursor: pointer; }
+button:disabled, input:disabled { cursor: not-allowed; opacity: .6; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+.title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+h1 { margin: 0; font-size: clamp(28px, 6vw, 48px); font-weight: 900; letter-spacing: -.02em; line-height: 1.1; white-space: nowrap; }
+h1 .m { color: var(--accent); }
+.nav { display: flex; gap: 6px; }
+.nav button {
+  height: 40px; min-width: 40px; padding: 0 12px; border: 1px solid var(--line); background: var(--panel);
+  color: var(--fg); border-radius: 8px; font-size: 16px; font-weight: 700;
+}
+.nav button:hover { border-color: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 14px; background: var(--panel); border-radius: 10px; }
+.lg-items { display: flex; flex-wrap: wrap; gap: 8px 16px; min-width: 0; }
+.lg-items span { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; font-size: 15px; }
+.lg-items input { width: 96px; height: 32px; border: 1px solid var(--line); border-radius: 6px; padding: 0 8px; background: var(--bg); color: var(--fg); font: inherit; font-size: 14px; }
+.sw { width: 28px; height: 20px; border-radius: 6px; display: inline-block; flex: none; }
+.sw.note { background: transparent; color: var(--note-fg); font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; border: 1px dashed var(--note-fg); }
+
+.cal { border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: var(--bg); }
+.dow, .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.dow div { background: var(--head-bg); text-align: center; font-weight: 700; padding: 10px 0; font-size: clamp(13px, 2.6vw, 20px); border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.dow div:first-child, .cell:nth-child(7n+1) { border-left: 0; }
+.dow .s0 { color: var(--sun); } .dow .s6 { color: var(--sat); }
+.cell {
+  min-height: clamp(84px, 14vw, 140px); border-left: 1px solid var(--line); border-top: 1px solid var(--line);
+  padding: 6px clamp(3px, .8vw, 8px) 8px; display: flex; flex-direction: column; gap: 4px; text-align: left;
+  background: transparent; color: var(--fg); border-right: 0; border-bottom: 0; border-radius: 0; font: inherit; min-width: 0;
+}
+.grid .cell:nth-child(-n+7) { border-top: 0; }
+.cell:hover { background: var(--panel); }
+.cell.out { opacity: .38; }
+.num { font-weight: 700; font-size: clamp(14px, 2.4vw, 22px); line-height: 1; padding: 3px 0 2px; align-self: flex-start; font-variant-numeric: tabular-nums; }
+.cell.d0 .num { color: var(--sun); } .cell.d6 .num { color: var(--sat); }
+.cell.today .num { background: var(--today); color: var(--today-fg); border-radius: 999px; padding: 4px 8px; margin-left: -4px; }
+.memos { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.chip {
+  border-radius: 8px; padding: 3px 6px; font-weight: 700; font-size: clamp(10.5px, 1.5vw, 15px); text-align: center; line-height: 1.25;
+  overflow-wrap: anywhere; border: 0; width: 100%;
+}
+.c-nes { background: var(--nes-bg); color: var(--nes-fg); }
+.c-lora { background: var(--lora-bg); color: var(--lora-fg); }
+.c-robin { background: var(--robin-bg); color: var(--robin-fg); }
+.c-etc { background: var(--etc-bg); color: var(--etc-fg); }
+.c-note { background: transparent; color: var(--note-fg); font-weight: 500; font-size: clamp(9.5px, 1.2vw, 12.5px); padding: 1px 0; }
+.foot { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; }
+.hint { color: var(--muted); font-size: 13.5px; margin: 0; }
+.status { font-size: 13.5px; font-weight: 700; margin: 0; color: var(--muted); }
+.status.on { color: var(--ok); }
+.status.err { color: var(--sun); }
+
+/* 편집 시트 */
+.overlay { position: fixed; inset: 0; background: var(--overlay); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
+.sheet {
+  width: min(560px, 100%); max-height: 88%; overflow-y: auto; background: var(--bg); border: 1px solid var(--line);
+  border-radius: 16px 16px 0 0; padding: 18px max(16px, env(safe-area-inset-right, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  display: flex; flex-direction: column; gap: 14px;
+}
+@media (min-width: 640px) { .overlay { align-items: center; } .sheet { border-radius: 16px; } }
+.sh-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sh-head h2 { margin: 0; font-size: 20px; font-weight: 700; }
+.x { border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 8px; height: 36px; padding: 0 12px; font-weight: 500; }
+.rows { display: flex; flex-direction: column; gap: 10px; }
+.row { display: flex; flex-direction: column; gap: 8px; padding: 10px; background: var(--panel); border-radius: 10px; }
+.row .line { display: flex; gap: 8px; }
+.row input[type=text], .add input[type=text] {
+  flex: 1; min-width: 0; height: 40px; border: 1px solid var(--line); border-radius: 8px; padding: 0 10px;
+  background: var(--bg); color: var(--fg); font: inherit; font-size: 15px;
+}
+.del { border: 1px solid var(--line); background: var(--bg); color: var(--sun); border-radius: 8px; height: 40px; padding: 0 12px; font-weight: 700; }
+.picks { display: flex; flex-wrap: wrap; gap: 6px; }
+.pick { border: 2px solid transparent; border-radius: 8px; padding: 4px 10px; font-size: 13px; font-weight: 700; }
+.pick[aria-pressed="true"] { border-color: var(--fg); }
+.pick.c-note { border: 1px dashed var(--note-fg); background: transparent; }
+.pick.c-note[aria-pressed="true"] { border: 2px solid var(--fg); }
+.add { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; border-top: 1px solid var(--line); }
+.add .line { display: flex; gap: 8px; }
+.go { height: 40px; padding: 0 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--today-fg); font-weight: 700; font-size: 15px; }
+.empty { color: var(--muted); margin: 0; font-size: 14px; }
+.ro .add, .ro .del, .ro #lgEdit { display: none; }
+</style>
+
+<div class="wrap" id="app">
+  <div class="top">
+    <div class="title">
+      <h1 id="ttl"></h1>
+    </div>
+    <div class="nav">
+      <button id="prev" aria-label="이전 달">‹</button>
+      <button id="today">오늘</button>
+      <button id="next" aria-label="다음 달">›</button>
+    </div>
+  </div>
+  <div class="legend" aria-label="색상 안내">
+    <div class="lg-items" id="legend"></div>
+    <button type="button" class="x" id="lgEdit">이름 편집</button>
+  </div>
+  <div class="cal">
+    <div class="dow"><div class="s0">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div class="s6">토</div></div>
+    <div class="grid" id="grid"></div>
+  </div>
+  <div class="foot">
+    <p class="status" id="status" role="status">연결 중…</p>
+    <p class="hint" id="hint">날짜를 누르면 메모를 추가, 수정, 삭제할 수 있습니다.</p>
+  </div>
+</div>
+
+<div class="overlay" id="ov" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="shT">
+    <div class="sh-head"><h2 id="shT"></h2><button class="x" id="close">닫기</button></div>
+    <div class="rows" id="rows"></div>
+    <div class="add">
+      <div class="line">
+        <input type="text" id="newText" placeholder="새 메모 입력" maxlength="60" aria-label="새 메모">
+        <button class="go" id="addBtn">추가</button>
+      </div>
+      <div class="picks" id="newPicks"></div>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</html>
